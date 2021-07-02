@@ -1,21 +1,13 @@
-// *** SNDEMO ***
-
-// This example shows how to autoconnect between the SPAD.neXt and Arduino.
+// This connects a trim and flaps control to SPAD.neXt via Simconnect.
 //
 // SPAD.neXt >= 0.9.7.5 required
 //
-// It demonstrates how to
-// - Respond to a connection request from SPAD.neXt
-// - Use a identifier to handshake
-// - Expose a data value to SPAD.neXt
-// - Request Data Updates from SPAD.neXt
 
 #include <CmdMessenger.h>  // CmdMessenger
 #include <Encoder.h>
 #include <Servo.h>
 
 // Pinout
-const int ledPin = LED_BUILTIN;
 const int elevTrimEncoderPins[] = {2, 3};
 const int elevTrimServoPin = 4;
 const int flapsSwitchPins[] = {8, 9};
@@ -96,7 +88,7 @@ void onIdentifyRequest()
     // Unique Device ID: Change this!
     messenger.sendCmdArg(F("{f392d590-a755-413b-8daf-333d4afa58bd}"));
     // Device Name for UI
-    messenger.sendCmdArg("Arduino Demo");
+    messenger.sendCmdArg("Trim/flaps");
     messenger.sendCmdEnd();
   }
 
@@ -108,17 +100,6 @@ void onIdentifyRequest()
   }
   
   else if (strcmp(szRequest, "CONFIG") == 0) {
-
-    // Expose LED
-    messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg("ADD");
-    messenger.sendCmdArg(kLed);
-    messenger.sendCmdArg("leds/systemled"); // will become "SERIAL:<guid>/leds/systemled"
-    messenger.sendCmdArg("U8");
-    messenger.sendCmdArg("RW");
-    messenger.sendCmdArg("Led");
-    messenger.sendCmdArg("Toggle LED on/off");
-    messenger.sendCmdEnd();
 
     // Expose Elevator Trim Wheel
     messenger.sendCmdStart(kCommand);
@@ -151,9 +132,6 @@ void onIdentifyRequest()
     // tell SPAD.neXT we are done with config
     messenger.sendCmd(kRequest, "CONFIG");
     isReady = true;
-
-    // Make sure led is turned off and SPAD.neXt gets the value
-    setLED(LOW);
   }
 
   else if (strcmp(szRequest, "START") == 0) {
@@ -229,77 +207,6 @@ void setFlapsPos()
   }
 }
 
-void setNav1Freq()
-{
-//  int newRawPosition = Nav1FreqEncoder.read();
-//
-//  if (newRawPosition != oldNav1FreqEncoderPosition) // Has the wheel moved?
-//  {
-//    int newPosition = max(minNav1FreqEncoderPosition, min(newRawPosition, maxNav1FreqEncoderPosition));
-//
-//    oldNav1FreqEncoderPosition = newPosition;
-//    
-//    if (newPosition != newRawPosition) // Has the wheel moved past its limits?
-//    {
-//      Nav1FreqTrimEncoder.write(newPosition);
-//    }
-//
-//    int val = map(newPosition, minNav1FreqEncoderPosition, maxNav1FreqEncoderPosition, minNav1FreqPosition, maxNav1FreqPosition);
-//    float scaled_val = float(val) / float(float_int_scalar);
-//
-//    messenger.sendCmd(kDebug, newRawPosition);
-//    messenger.sendCmd(kDebug, newPosition);
-//    messenger.sendCmd(kDebug, val);
-//    messenger.sendCmd(kDebug, scaled_val);
-//
-//    messenger.sendCmdStart(kNav1FreqPos);
-//    messenger.sendCmdArg(scaled_val);
-//    messenger.sendCmdEnd();
-//  }
-}
-
-void setNav2Freq()
-{
-  return;
-//  int newRawPosition = Nav2FreqEncoder.read();
-//
-//  if (newRawPosition != oldNav2FreqEncoderPosition) // Has the wheel moved?
-//  {
-//    int newPosition = max(minNav2FreqEncoderPosition, min(newRawPosition, maxNav2FreqEncoderPosition));
-//
-//    oldNav2FreqEncoderPosition = newPosition;
-//    
-//    if (newPosition != newRawPosition) // Has the wheel moved past its limits?
-//    {
-//      Nav2FreqTrimEncoder.write(newPosition);
-//    }
-//
-//    int val = map(newPosition, minNav2FreqEncoderPosition, maxNav2FreqEncoderPosition, minNav2FreqPosition, maxNav2FreqPosition);
-//    float scaled_val = float(val) / float(float_int_scalar);
-//
-//    messenger.sendCmd(kDebug, newRawPosition);
-//    messenger.sendCmd(kDebug, newPosition);
-//    messenger.sendCmd(kDebug, val);
-//    messenger.sendCmd(kDebug, scaled_val);
-//
-//    messenger.sendCmdStart(kNav2FreqPos);
-//    messenger.sendCmdArg(scaled_val);
-//    messenger.sendCmdEnd();
-//  }
-}
-  
-// Update system LED and post state back to SPAD.neXt
-void setLED(int ledVal)
-{
-  digitalWrite(ledPin,ledVal);
-  // Update Led-Data on SPAD.neXt
-  if ((ledVal != lastLedState) && isReady)
-  {
-    lastLedState = ledVal;
-    messenger.sendCmd(kLed,ledVal);
-  }
-}
-
 // --------------- S U P P O R T  -------------------
 
 // Returns if it has been more than interval (in ms) ago. Used for periodic actions
@@ -325,12 +232,8 @@ void setup()
   attachCommandCallbacks();
 
   // initialize digital pins
-  pinMode(ledPin, OUTPUT);
   pinMode(flapsSwitchPins[0], INPUT_PULLUP);
   pinMode(flapsSwitchPins[1], INPUT_PULLUP);
-
-  // Turn LED on, will be turned off when connection to SPAD.neXt it up and running
-  setLED(HIGH);
 
   // Attach and cycle servos
   ElevTrimServo.attach(elevTrimServoPin);
@@ -358,6 +261,4 @@ void loop()
 
   setElevTrimPos();
   setFlapsPos();
-//  setNav1Freq();
-//  setNav2Freq();
 }
