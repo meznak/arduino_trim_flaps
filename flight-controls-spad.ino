@@ -16,8 +16,8 @@
 
 // Pinout
 const int ledPin = LED_BUILTIN;
-const int elevTrimEncoderPins[] = {5, 6};
-const int elevTrimServoPin = 7;
+const int elevTrimEncoderPins[] = {2, 3};
+const int elevTrimServoPin = 4;
 const int flapsSwitchPins[] = {8, 9};
 const int flapsServoPin = 10;
 
