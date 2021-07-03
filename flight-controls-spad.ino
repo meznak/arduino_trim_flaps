@@ -3,7 +3,7 @@
 // SPAD.neXt >= 0.9.7.5 required
 //
 
-#include <CmdMessenger.h>  // CmdMessenger
+#include <CmdMessenger.h>
 #include <Encoder.h>
 #include <Servo.h>
 
@@ -62,8 +62,6 @@ void attachCommandCallbacks()
   // Attach callback methods
   messenger.attach(onUnknownCommand);
   messenger.attach(kRequest , onIdentifyRequest);
-//  messenger.attach(kLed, onTurnLedOn);
-//  messenger.attach(kElevTrimPos , onElevTrimPos);
   messenger.attach(kElevTrimInd , onElevTrimInd);
   messenger.attach(kFlapsInd , onFlapsInd);
 }
@@ -84,17 +82,17 @@ void onIdentifyRequest()
 
   if (strcmp(szRequest, "INIT") == 0) {
     messenger.sendCmdStart(kRequest);
-    messenger.sendCmdArg("SPAD");
+    messenger.sendCmdArg(F("SPAD"));
     // Unique Device ID: Change this!
     messenger.sendCmdArg(F("{f392d590-a755-413b-8daf-333d4afa58bd}"));
     // Device Name for UI
-    messenger.sendCmdArg("Trim/flaps");
+    messenger.sendCmdArg(F("Trim/flaps"));
     messenger.sendCmdEnd();
   }
 
   else if (strcmp(szRequest, "PING") == 0) {
     messenger.sendCmdStart(kRequest);
-    messenger.sendCmdArg("PONG");
+    messenger.sendCmdArg(F("PONG"));
     messenger.sendCmdArg(messenger.readInt32Arg());
     messenger.sendCmdEnd();
   }
@@ -103,34 +101,34 @@ void onIdentifyRequest()
 
     // Expose Elevator Trim Wheel
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg("SUBSCRIBE");
+    messenger.sendCmdArg(F("SUBSCRIBE"));
     messenger.sendCmdArg(kElevTrimPct);
-    messenger.sendCmdArg("SIMCONNECT:ELEVATOR TRIM PCT");
+    messenger.sendCmdArg(F("SIMCONNECT:ELEVATOR TRIM PCT"));
     messenger.sendCmdEnd();
     
     // Request Elevator Trim Updates
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg("SUBSCRIBE");
+    messenger.sendCmdArg(F("SUBSCRIBE"));
     messenger.sendCmdArg(kElevTrimInd);
-    messenger.sendCmdArg("SIMCONNECT:ELEVATOR TRIM INDICATOR");
+    messenger.sendCmdArg(F("SIMCONNECT:ELEVATOR TRIM INDICATOR"));
     messenger.sendCmdEnd();
     
     // Expose Flaps Switch
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg("SUBSCRIBE");
+    messenger.sendCmdArg(F("SUBSCRIBE"));
     messenger.sendCmdArg(kFlapsPos);
-    messenger.sendCmdArg("SIMCONNECT:FLAPS HANDLE INDEX");
+    messenger.sendCmdArg(F("SIMCONNECT:FLAPS HANDLE INDEX"));
     messenger.sendCmdEnd();
     
     // Request Flaps Updates
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg("SUBSCRIBE");
+    messenger.sendCmdArg(F("SUBSCRIBE"));
     messenger.sendCmdArg(kFlapsInd);
-    messenger.sendCmdArg("SIMCONNECT:TRAILING EDGE FLAPS LEFT PERCENT");
+    messenger.sendCmdArg(F("SIMCONNECT:TRAILING EDGE FLAPS LEFT PERCENT"));
     messenger.sendCmdEnd();
 
     // tell SPAD.neXT we are done with config
-    messenger.sendCmd(kRequest, "CONFIG");
+    messenger.sendCmd(kRequest, F("CONFIG"));
     isReady = true;
   }
 
