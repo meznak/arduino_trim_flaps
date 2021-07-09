@@ -19,25 +19,26 @@ unsigned long previousUpdate = 0;
 // Listen on serial connection for messages from the pc
 CmdMessenger messenger(Serial);
 
+String vJoy="1234:BEAD:1";
+
 // This is the list of recognized commands. These can be commands that can either be sent
 // or received.
 // In order to receive, attach a callback function to these events
 enum
 {
-  kRequest = 0, // Request from SPAD.neXt
-  kCommand = 1, // Command to SPAD.neXt
-  kEvent = 2, // Events from SPAD.neXt
-  kDebug = 3, // Debug strings to SPAD.neXt Logfile
-  kSimCommand = 4, // Send Event to Simulation
-  kLed = 10, // CMDID for exposed data to SPAD.neXt
-  kHeading = 11, // CMDID for data updates from SPAD.neXt
-  kElevTrimPct = 12,
-  kElevTrimInd = 13,
-  kFlapsPos = 14,
-  kFlapsInd = 15,
+  kRequest = 0,         // Request from SPAD.neXt              ... Documentation lists as "Command:0"
+  kCommand = 1,         // Command to SPAD.neXt                ... Documentation lists as "Command:1"
+  kEvent = 2,           // Events from SPAD.neXt               ... Documentation lists as "Command:2"
+  kDebug = 3,           // Debug strings to SPAD.neXt Logfile  ... Documentation lists as "Debug Channel"
+  kSimCommand = 4,      // Send Event to Simulation            ... Documentation lists as "Command:4"
+                        // Command IDs 5-9 are Reserved.
+                        // Command IDs 10-49 are for Data Updates.  Where we "expose/subscibe" to data to process in our sketch..   
+  sElevTrimPct = 10,    // CMDID for exposed data to SPAD.neXt.  We will see the data later as a Local Variable in Spad.Next
+  rElevTrimInd = 11,
+  sFlapsPos = 12,
+  rFlapsInd = 13,
 };
 
-int lastLedState = 999;
 bool isReady = false;
 
 // Elevator trim wheel encoder variables
@@ -49,6 +50,8 @@ int minElevTrimEncoderPosition = -maxElevTrimEncoderPosition;
 // Elevator trim indicator servo variables
 Servo ElevTrimServo;
 const int maxElevTrimIndicatorDeflection = 30;
+const int maxElevTrimIndicatorPosition = 90 + maxElevTrimIndicatorDeflection / 2;
+const int minElevTrimIndicatorPosition = 90 - maxElevTrimIndicatorDeflection / 2;
 
 // Flaps switch variables
 uint8_t oldFlapsSwitchPosition  = -99;
@@ -56,14 +59,16 @@ uint8_t oldFlapsSwitchPosition  = -99;
 // Flaps indicator servo variables
 Servo FlapsServo;
 const int maxFlapsIndicatorDeflection = 60;
+const int maxFlapsIndicatorPosition = 90 + maxFlapsIndicatorDeflection / 2;
+const int minFlapsIndicatorPosition = 90 - maxFlapsIndicatorDeflection / 2;
 
 void attachCommandCallbacks()
 {
   // Attach callback methods
   messenger.attach(onUnknownCommand);
-  messenger.attach(kRequest , onIdentifyRequest);
-  messenger.attach(kElevTrimInd , onElevTrimInd);
-  messenger.attach(kFlapsInd , onFlapsInd);
+  messenger.attach(kRequest, onIdentifyRequest);
+  messenger.attach(rElevTrimInd, onElevTrimInd);
+  messenger.attach(rFlapsInd, onFlapsInd);
 }
 
 // ------------------  C A L L B A C K S -----------------------
@@ -71,7 +76,7 @@ void attachCommandCallbacks()
 // Called when a received command has no attached function
 void onUnknownCommand()
 {
-  messenger.sendCmd(kDebug,"UNKNOWN COMMAND"); 
+  messenger.sendCmd(kDebug, "UNKNOWN COMMAND"); 
 }
 
 // Callback function to respond to indentify request. This is part of the
@@ -101,30 +106,42 @@ void onIdentifyRequest()
 
     // Expose Elevator Trim Wheel
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg(F("SUBSCRIBE"));
-    messenger.sendCmdArg(kElevTrimPct);
-    messenger.sendCmdArg(F("SIMCONNECT:ELEVATOR TRIM PCT"));
+    messenger.sendCmdArg(F("ADD"));
+    messenger.sendCmdArg(sElevTrimPct);
+    messenger.sendCmdArg(F("controls/elevator_trim"));
+    messenger.sendCmdArg(F("S8"));
+    messenger.sendCmdArg(F("RW"));
+    messenger.sendCmdArg(F("Elevator trim wheel"));
     messenger.sendCmdEnd();
     
     // Request Elevator Trim Updates
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg(F("SUBSCRIBE"));
-    messenger.sendCmdArg(kElevTrimInd);
-    messenger.sendCmdArg(F("SIMCONNECT:ELEVATOR TRIM INDICATOR"));
+    messenger.sendCmdArg(F("ADD"));
+    messenger.sendCmdArg(rElevTrimInd);
+    messenger.sendCmdArg(F("indicators/elevator_trim_pct"));
+    messenger.sendCmdArg(F("S8"));
+    messenger.sendCmdArg(F("RO"));
+    messenger.sendCmdArg(F("Elevator trim indicator (pct)"));
     messenger.sendCmdEnd();
     
     // Expose Flaps Switch
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg(F("SUBSCRIBE"));
-    messenger.sendCmdArg(kFlapsPos);
-    messenger.sendCmdArg(F("SIMCONNECT:FLAPS HANDLE INDEX"));
+    messenger.sendCmdArg(F("ADD"));
+    messenger.sendCmdArg(sFlapsPos);
+    messenger.sendCmdArg(F("controls/flaps_handle"));
+    messenger.sendCmdArg(F("U8"));
+    messenger.sendCmdArg(F("RW"));
+    messenger.sendCmdArg(F("Flaps handle position"));
     messenger.sendCmdEnd();
     
     // Request Flaps Updates
     messenger.sendCmdStart(kCommand);
-    messenger.sendCmdArg(F("SUBSCRIBE"));
-    messenger.sendCmdArg(kFlapsInd);
-    messenger.sendCmdArg(F("SIMCONNECT:TRAILING EDGE FLAPS LEFT PERCENT"));
+    messenger.sendCmdArg(F("ADD"));
+    messenger.sendCmdArg(rFlapsInd);
+    messenger.sendCmdArg(F("indicators/flaps_position_pct"));
+    messenger.sendCmdArg(F("S8"));
+    messenger.sendCmdArg(F("RO"));
+    messenger.sendCmdArg(F("Flaps position (pct)"));
     messenger.sendCmdEnd();
 
     // tell SPAD.neXT we are done with config
@@ -136,18 +153,18 @@ void onIdentifyRequest()
     oldElevTrimEncoderPosition  = -9999;
     ElevTrimEncoder.write(0);
   }
-  
-  return;
 }
 
 // Update elevator trim indicator
 void onElevTrimInd()
 {
-  // TODO: Change this to int
   float newPosition = messenger.readFloatArg();
 
   int elevTrimServoPos = int(90 + newPosition * maxElevTrimIndicatorDeflection);
-  
+  elevTrimServoPos = clamp(elevTrimServoPos, minElevTrimIndicatorPosition, maxElevTrimIndicatorPosition);
+
+  messenger.sendCmd(kDebug, "Trim indicator: " + elevTrimServoPos);
+
   ElevTrimServo.write(elevTrimServoPos);
 }
 
@@ -156,9 +173,9 @@ void onFlapsInd()
   int newPosition = messenger.readFloatArg() * 100;
   
   int flapsServoPos = 120 - (newPosition * maxFlapsIndicatorDeflection) / 100;
+  flapsServoPos = clamp(flapsServoPos, minFlapsIndicatorPosition, maxFlapsIndicatorPosition);
 
-  messenger.sendCmd(kDebug, newPosition);
-  messenger.sendCmd(kDebug, flapsServoPos);
+  messenger.sendCmd(kDebug, "Flaps indicator: " + flapsServoPos);
   
   FlapsServo.write(flapsServoPos);
 }
@@ -168,6 +185,7 @@ void onFlapsInd()
 // Set elevator trim position
 void setElevTrimPos()
 {
+  // TODO: detect movement, not position
   int newRawPosition = ElevTrimEncoder.read();
 
   if (newRawPosition != oldElevTrimEncoderPosition) // Has the wheel moved?
@@ -183,7 +201,7 @@ void setElevTrimPos()
 
     int elevTrimPct = int(float(newPosition) / float(maxElevTrimEncoderPosition) * 100.0);
 
-    messenger.sendCmdStart(kElevTrimPct);
+    messenger.sendCmdStart(sElevTrimPct);
     messenger.sendCmdArg(elevTrimPct);
     messenger.sendCmdEnd();
   }
@@ -199,7 +217,7 @@ void setFlapsPos()
   {
     oldFlapsSwitchPosition = newPosition;
     
-    messenger.sendCmdStart(kFlapsPos);
+    messenger.sendCmdStart(sFlapsPos);
     messenger.sendCmdArg(newPosition);
     messenger.sendCmdEnd();
   }
@@ -210,7 +228,7 @@ void setFlapsPos()
 // Returns if it has been more than interval (in ms) ago. Used for periodic actions
 bool hasExpired(unsigned long &prevTime, unsigned long interval)
 {
-  if (  millis() - prevTime > interval ) {
+  if (millis() - prevTime > interval) {
     prevTime = millis();
     return true;
   } else     
@@ -238,17 +256,17 @@ void setup()
   FlapsServo.attach(flapsServoPin);
 
   ElevTrimServo.write(60);
-  delay(250);
+  // delay(250);
   FlapsServo.write(120);
-  delay(250);
+  // delay(250);
   ElevTrimServo.write(120);
-  delay(250);
+  // delay(250);
   FlapsServo.write(60);
-  delay(250);
+  // delay(250);
   ElevTrimServo.write(90);
-  delay(250);
+  // delay(250);
   FlapsServo.write(90);
-  delay(250);
+  // delay(250);
 }
 
 // Loop function
@@ -259,4 +277,8 @@ void loop()
 
   setElevTrimPos();
   setFlapsPos();
+}
+
+int clamp(int value, int min_value, int max_value) {
+  return max(min(value, max_value), min_value);
 }
