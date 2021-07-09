@@ -43,7 +43,7 @@ bool isReady = false;
 // Elevator trim wheel encoder variables
 Encoder ElevTrimEncoder(elevTrimEncoderPins[0], elevTrimEncoderPins[1]);
 int oldElevTrimEncoderPosition = -9999;
-int maxElevTrimEncoderPosition = 50;
+int maxElevTrimEncoderPosition = 200;
 int minElevTrimEncoderPosition = -maxElevTrimEncoderPosition;
 
 // Elevator trim indicator servo variables
